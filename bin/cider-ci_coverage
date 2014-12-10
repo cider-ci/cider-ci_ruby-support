@@ -44,13 +44,12 @@ end
 def get_and_convert_resultset_attachments execution, thread_pool_size
   print "download_resultset_attachments"; STDOUT.flush
   pool = Thread.pool thread_pool_size
-
-  execution.relation('tasks').get("state" => "success").collection\
+  execution.relation('tasks').get("state" => "passed").collection\
     .map do |task_relation|
     Thread.future pool do 
       print "."; STDOUT.flush
       task_relation.get().relation('trials') \
-        .get("state" => "success").collection.map(&:get).map do |trial|
+        .get("state" => "passed").collection.map(&:get).map do |trial|
         print "."; STDOUT.flush
         trial.relation('trial-attachments') \
           .get.collection.map do |tar|
@@ -70,6 +69,26 @@ def get_and_convert_resultset_attachments execution, thread_pool_size
   end.map(&:~).flatten.compact
 end
 
+
+###############################################################################
+# Upload      
+###############################################################################
+
+def upload_as_tree_attachments execution
+  print "upload_as_tree_attachments"; STDOUT.flush
+  upload_relation= execution.relation("tree-attachments").get() \
+    .relation("data-stream")
+  Dir.glob("coverage/**/*").each do |filename| 
+    if content_type= MIME::Types.of(filename).first.content_type rescue nil
+      payload= Faraday::UploadIO.new(filename, content_type)
+      upload_relation.put({"path" => filename}, 
+                          File.open(filename, "rb").read, 
+                          {"content-type" => content_type})
+      print "*"; STDOUT.flush
+    end
+  end
+  puts ""
+end
 
 
 ###############################################################################
@@ -171,21 +190,6 @@ def assert_correct_tree_id execution
   if execution.data['tree_id'] != `git log -n 1 --pretty=%T`.strip
     raise ScriptError, "you must be on the same tree_id as the execution" 
   end
-end
-
-def upload_as_tree_attachments execution
-  print "upload_as_tree_attachments"; STDOUT.flush
-  upload_relation= execution.relation("tree-attachments").get().relation("data-stream")
-  Dir.glob("coverage/**/*").each do |filename| 
-    if content_type= MIME::Types.of(filename).first.content_type rescue nil
-      payload= Faraday::UploadIO.new(filename, content_type)
-      upload_relation.put({"path" => filename}, 
-                          File.open(filename, "rb").read, 
-                          {"content-type" => content_type})
-      print "*"; STDOUT.flush
-    end
-  end
-  puts ""
 end
 
 def main

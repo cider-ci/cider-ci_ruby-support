@@ -10,7 +10,7 @@ Gem::Specification.new do |spec|
   spec.email         = ["DrTom@schank.ch"]
   spec.summary       = "Cider-CI support for Ruby and Ruby on Rails projects"
   spec.description   = ""
-  spec.homepage      = ""
+  spec.homepage      = "https://github.com/cider-ci/cider-ci_ruby-support"
   spec.license       = "MIT"
 
   spec.files         = `git ls-files -z`.split("\x0")
@@ -21,8 +21,8 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "bundler", "~> 1.6"
   spec.add_development_dependency "rake", "~> 10.0"
 
-  spec.add_runtime_dependency 'mime-types', '~> 2.4.3'
+  spec.add_runtime_dependency 'mime-types'
   spec.add_runtime_dependency 'thread', '= 0.1.4'
-  spec.add_runtime_dependency 'simplecov', '~> 0.9.1'
-  spec.add_runtime_dependency 'json_roa-client', "= 1.0.0.pre.beta.0"
+  spec.add_runtime_dependency 'simplecov', '~> 0.9'
+  spec.add_runtime_dependency 'json_roa-client', "= 1.0.0.pre.beta.1"
 end
