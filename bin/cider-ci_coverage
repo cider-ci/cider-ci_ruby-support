@@ -23,7 +23,7 @@ require 'thread/pool'
 require 'mime/types'
 require 'open-uri'
 
-#require 'pry'
+require 'pry'
 
 ###############################################################################
 # Download from Cider-CI
@@ -40,33 +40,35 @@ def get_execution_resource root, execution_id
   root.relation('execution').get('id' => execution_id )
 end 
 
-
-def get_and_convert_resultset_attachments execution, thread_pool_size
+def get_and_convert_resultset_attachments root, tree_id, thread_pool_size
   print "download_resultset_attachments"; STDOUT.flush
   pool = Thread.pool thread_pool_size
-  execution.relation('tasks').get("state" => "passed").collection\
-    .map do |task_relation|
-    Thread.future pool do 
-      print "."; STDOUT.flush
-      task_relation.get().relation('trials') \
-        .get("state" => "passed").collection.map(&:get).map do |trial|
+  root.relation("executions").get('treeid' => tree_id).collection \
+    .map(&:get).map do |execution| 
+    execution.relation('tasks').get("state" => "passed").collection\
+      .map do |task_relation|
+      Thread.future pool do 
         print "."; STDOUT.flush
-        trial.relation('trial-attachments') \
-          .get.collection.map do |tar|
-          trial_attachment_resource= tar.get 
+        task_relation.get().relation('trials') \
+          .get("state" => "passed").collection.map(&:get).map do |trial|
           print "."; STDOUT.flush
-          if (working_dir= trial.data['scripts'] \
-              .map{|k,v| v["working_dir"]}.compact.first) \
-            and (trial_attachment_resource.data['path'] =~ /resultset\.json/)
-            print "*"; STDOUT.flush
-            resultset= trial_attachment_resource \
-              .relation('data-stream').get.response.body
-            convert_resultset resultset, working_dir
+          trial.relation('trial-attachments') \
+            .get.collection.map do |tar|
+            trial_attachment_resource= tar.get 
+            print "."; STDOUT.flush
+            if (working_dir= trial.data['scripts'] \
+                .map{|k,v| v["working_dir"]}.compact.first) \
+              and (trial_attachment_resource.data['path'] =~ /resultset\.json/)
+              print "*"; STDOUT.flush
+              resultset= trial_attachment_resource \
+                .relation('trial-attachment-data-stream').get.response.body
+              convert_resultset resultset, working_dir
+            end
           end
         end
       end
-    end
-  end.map(&:~).flatten.compact
+    end.map(&:~)
+  end.flatten.compact
 end
 
 
@@ -74,14 +76,15 @@ end
 # Upload      
 ###############################################################################
 
-def upload_as_tree_attachments execution
+# TODO add tree-attachments relation at cider root
+def upload_as_tree_attachments root, tree_id
   print "upload_as_tree_attachments"; STDOUT.flush
-  upload_relation= execution.relation("tree-attachments").get() \
-    .relation("data-stream")
+
   Dir.glob("coverage/**/*").each do |filename| 
     if content_type= MIME::Types.of(filename).first.content_type rescue nil
       payload= Faraday::UploadIO.new(filename, content_type)
-      upload_relation.put({"path" => filename}, 
+      root.relation("tree-attachment-data-stream").put({"treeid" => tree_id, 
+                                                        "path" => filename}, 
                           File.open(filename, "rb").read, 
                           {"content-type" => content_type})
       print "*"; STDOUT.flush
@@ -135,11 +138,12 @@ end
 # Run
 ###############################################################################
 
-def run_coverage execution, thrad_pool_size
-  get_and_convert_resultset_attachments(execution,thrad_pool_size) \
+def run_coverage root, tree_id, thrad_pool_size
+  get_and_convert_resultset_attachments(root,tree_id,thrad_pool_size) \
     .instance_eval do
     reduce_resultsets self
   end.instance_eval do
+    raise ScriptError, "the collected and reduced coverage result is empty" if self.empty? 
     init_simple_cov
     SimpleCov::Result.new self
   end.instance_eval do
@@ -180,6 +184,10 @@ def parse_options options
       options.password= p
     end
 
+    opts.on('-u', '--upload') do 
+      options.upload= true
+    end
+
   end.parse!
 
   options
@@ -192,16 +200,28 @@ def assert_correct_tree_id execution
   end
 end
 
+def get_current_tree_id
+  begin 
+    tree_id= `"git" "log" "-n" "1" "--pretty=%T"`.strip 
+  rescue _
+    raise ScriptError, "could not determine the current tree_id"
+  end
+
+  if $?.exitstatus != 0 
+    raise ScriptError, "could not determine the current tree_id"
+  else
+    tree_id
+  end
+end
+
 def main
   options = OpenStruct.new
   options.thread_pool_size= 50
-  options.execution_id= nil
   options.username= ENV['CIDER_CI_USERNAME']
   options.password= ENV['CIDER_CI_PASSWORD']
   options.api_url= ENV['CIDER_CI_API_URL']
+  options.upload= false
   parse_options options
-  options.execution_id || raise(OptionParser::MissingArgument \
-                                , "execution_id is required")
   options.api_url || raise(OptionParser::MissingArgument \
                                 , "api_url is required, set CIDER_CI_API_URL or provide -a option")
   options.username || raise(OptionParser::MissingArgument \
@@ -209,13 +229,13 @@ def main
   options.password || raise(OptionParser::MissingArgument \
                             , "password is required, set CIDER_CI_PASSWORD")
 
-
   root = connect(options.api_url, options.username, options.password).get()
-  execution= get_execution_resource root, options.execution_id
-  assert_correct_tree_id execution
+  tree_id = get_current_tree_id 
   FileUtils.rm_rf('coverage')
-  run_coverage execution, options.thread_pool_size
-  upload_as_tree_attachments execution
+  run_coverage root, tree_id, options.thread_pool_size
+  if options.upload 
+    upload_as_tree_attachments root, tree_id
+  end
 end
 
 main 

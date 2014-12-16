@@ -8,17 +8,13 @@ This gem provides convenience executables to work with Cider-CI.
 Add this line to your application's Gemfile:
 
 ```ruby
-gem 'cider_ci-support'
+gem 'cider_ci-support', '= 1.0.0.pre.beta.3'
 ```
 
-And then execute:
+Read [this][] if you want to know why the version looks strange and why
+you should use `=`.
 
-    $ bundle
-
-Or install it yourself as:
-
-    $ gem install cider_ci-rails
-
+  [this]: https://github.com/json-roa/json-roa_ruby-client#semantic-versioning-and-rubygems-versioning
 
 ## Usage
 
@@ -40,7 +36,16 @@ Or install it yourself as:
 
 4. Within the top level directory of you project, e.g. 
 
-    cider-ci_coverage -e EXECUTION_ID
+  ~~~
+  cider-ci_coverage 
+  ~~~
 
+  which will create the coverage output in `./coverage/`. Alternatively
 
+  ~~~
+  cider-ci_coverage --upload
+  ~~~
+
+  will additionally upload the files `./coverage/**/*`
+  as tree-attachments. 
 
