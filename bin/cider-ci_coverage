@@ -23,7 +23,7 @@ require 'thread/pool'
 require 'mime/types'
 require 'open-uri'
 
-require 'pry'
+# require 'pry'
 
 ###############################################################################
 # Download from Cider-CI
@@ -148,6 +148,7 @@ def run_coverage root, tree_id, thrad_pool_size
     SimpleCov::Result.new self
   end.instance_eval do
     SimpleCov::Formatter::HTMLFormatter.new.format self
+    self
   end
 end
 
@@ -188,6 +189,10 @@ def parse_options options
       options.upload= true
     end
 
+    opts.on('-t', '--threshold',Integer)  do |t|
+      options.threshold= t
+    end
+
   end.parse!
 
   options
@@ -221,6 +226,7 @@ def main
   options.password= ENV['CIDER_CI_PASSWORD']
   options.api_url= ENV['CIDER_CI_API_URL']
   options.upload= false
+  options.threshold= 90
   parse_options options
   options.api_url || raise(OptionParser::MissingArgument \
                                 , "api_url is required, set CIDER_CI_API_URL or provide -a option")
@@ -232,10 +238,19 @@ def main
   root = connect(options.api_url, options.username, options.password).get()
   tree_id = get_current_tree_id 
   FileUtils.rm_rf('coverage')
-  run_coverage root, tree_id, options.thread_pool_size
+  result= run_coverage root, tree_id, options.thread_pool_size
   if options.upload 
     upload_as_tree_attachments root, tree_id
   end
+
+  coverage= result.covered_lines / result.total_lines.to_f
+
+  if coverage < options.threshold/100.0
+    Kernel.abort("coverage at #{(coverage * 100).round(2)}% is below threshold of #{options.threshold}% ")
+  else
+    Kernel.exit(0)
+  end
+
 end
 
 main 
