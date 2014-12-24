@@ -54,12 +54,22 @@ gem 'cider_ci-support', '~> 1.0.0'
   ~~~
 
 
-### Static code analysis with `cider-ci_flog`
+### Static complexity code analysis with `cider-ci_code-complexity`
 
 `cider-ci_flog` uses [flog][] to perform a static code analysis. It exits with
 0 if and only if there are no offenders. The original `flog` always exits with
 0. Therefore `cider-ci_flog` lends itself to be used within a task of
 a Cider-CI execution suite. 
 
+
+### Static similarity code analysis with `cider-ci_flay`
+
+`cider-ci_flay` uses [flay][] to perform a static code
+analysis. It exits with 0 if and only if there are no offenders. The
+original `flay` always exits with 0. Therefore
+`cider-ci_flay` lends itself to be used within a task of a
+Cider-CI execution suite.
+
+  [flay]: http://ruby.sadi.st/Flay.html
   [flog]: http://ruby.sadi.st/Flog.html
 

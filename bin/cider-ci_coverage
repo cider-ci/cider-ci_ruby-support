@@ -162,7 +162,7 @@ def parse_options options
 
 
   optparse = OptionParser.new do |opts|
-    opts.banner = "Usage: retrieve_cider_coverage.rb -e EXECUTION_ID"
+    opts.banner = "Usage: cider-ci_coverage"
 
     opts.on('-a', '--api-url API-URL') do |url|
       options.api_url= url

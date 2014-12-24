@@ -3,15 +3,13 @@
 require 'optparse'
 require 'ostruct'
 require 'yaml'
-require 'flog_cli'
-require 'flog'
+require 'flay'
 
-# require 'pry'
-
+require 'pry'
 
 ###############################################################################
-# 
-# Static complexity code analysis based on flog.
+#
+# Static similarity code analysis based on flay.
 #
 # Author: Thomas Schank <DrTom@schank.ch>
 #
@@ -26,17 +24,16 @@ require 'flog'
 def parse_options options
 
   optparse = OptionParser.new do |opts|
-    opts.banner = "Usage: cider-ci_flog FILE/DIR ..."
-
-    opts.on('-l', '--limit N', Integer)  do |l|
-      options.limit= l
-    end
+    opts.banner = "Usage: cider-ci_flay FILE/DIR ..."
 
     opts.on('-d', '--print-details')  do 
       options.print_details= true
     end
 
-
+    opts.on('-m', '--mass MASS', Integer,
+           "See flay documentation, default #{options.mass}.")  do |n|
+      options.mass= n
+    end
 
   end.parse!
 
@@ -46,36 +43,28 @@ end
 
 def main
   options = OpenStruct.new
-  options.limit= 30
   options.print_details= false
-
+  options.mass= 16
   parse_options options
 
-  files= FlogCLI.expand_dirs_to_files ARGV
+  flay_options= Flay.default_options.merge({
+    mass: options.mass
+  })
+  
+  flay = Flay.new flay_options
+  files = Flay.expand_dirs_to_files(*ARGV)
 
   abort "No files are selected" if files.empty?
 
-  flog_options = FlogCLI.parse_options []
-  flogger= Flog.new flog_options
-  flogger.flog *files
-
-  offending= flogger.totals \
-    .select{|k,v| v > options.limit} \
-    .sort_by{ |k,v| -v}
+  flay.process(*files)
+  offending= flay.analyze
 
   if offending.empty? 
-    $stdout.puts "cider-ci_flog OK" 
+    $stdout.puts "cider-ci_flay OK" 
     exit 
   else
-    $stderr.puts "cider-ci_flog FAILED:" 
-    offending.each do |offender|
-      $stderr.puts "" if options.print_details 
-
-      $stderr.puts "#{offender[1].round} #{offender[0]}"
-      if options.print_details 
-        $stderr.puts flogger.calls[offender[0]].to_yaml
-      end
-    end
+    $stderr.puts "cider-ci_flay FAILED:" 
+    flay.report $stderr
     abort 
   end
 
