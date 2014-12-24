@@ -8,13 +8,8 @@ This gem provides convenience executables to work with Cider-CI.
 Add this line to your application's Gemfile:
 
 ```ruby
-gem 'cider_ci-support', '= 1.0.0.pre.beta.3'
+gem 'cider_ci-support', '~> 1.0.0'
 ```
-
-Read [this][] if you want to know why the version looks strange and why
-you should use `=`.
-
-  [this]: https://github.com/json-roa/json-roa_ruby-client#semantic-versioning-and-rubygems-versioning
 
 ## Usage
 
@@ -48,4 +43,14 @@ you should use `=`.
 
   will additionally upload the files `./coverage/**/*`
   as tree-attachments. 
+
+5.  Set the desired `limit` (optionally). `cider-ci_coverage` will exit
+    with value 0 if and only if the ration `covered / uncovered lines`
+    in per cent is above the *limit* (default 95%). This limit can be
+    set by the `--limit LIMIT` option where `LIMIT` is a integer.
+
+  ~~~
+  cider-ci_coverage --upload --limit 99
+  ~~~
+
 

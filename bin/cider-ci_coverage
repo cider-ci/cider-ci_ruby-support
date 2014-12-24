@@ -23,7 +23,7 @@ require 'thread/pool'
 require 'mime/types'
 require 'open-uri'
 
-# require 'pry'
+#require 'pry'
 
 ###############################################################################
 # Download from Cider-CI
@@ -189,8 +189,8 @@ def parse_options options
       options.upload= true
     end
 
-    opts.on('-t', '--threshold',Integer)  do |t|
-      options.threshold= t
+    opts.on('-l', '--limit N', Integer)  do |l|
+      options.limit= l
     end
 
   end.parse!
@@ -226,7 +226,7 @@ def main
   options.password= ENV['CIDER_CI_PASSWORD']
   options.api_url= ENV['CIDER_CI_API_URL']
   options.upload= false
-  options.threshold= 90
+  options.limit= 95
   parse_options options
   options.api_url || raise(OptionParser::MissingArgument \
                                 , "api_url is required, set CIDER_CI_API_URL or provide -a option")
@@ -243,12 +243,12 @@ def main
     upload_as_tree_attachments root, tree_id
   end
 
-  coverage= result.covered_lines / result.total_lines.to_f
+  coverage= (result.covered_lines / result.total_lines.to_f)
 
-  if coverage < options.threshold/100.0
-    Kernel.abort("coverage at #{(coverage * 100).round(2)}% is below threshold of #{options.threshold}% ")
+  if coverage < options.limit / 100.0
+    abort("FAILED coverage at #{(coverage * 100).round(2)}% is below limit of #{options.limit}% ")
   else
-    Kernel.exit(0)
+    exit
   end
 
 end
