@@ -54,3 +54,12 @@ gem 'cider_ci-support', '~> 1.0.0'
   ~~~
 
 
+### Static code analysis with `cider-ci_flog`
+
+`cider-ci_flog` uses [flog][] to perform a static code analysis. It exits with
+0 if and only if there are no offenders. The original `flog` always exits with
+0. Therefore `cider-ci_flog` lends itself to be used within a task of
+a Cider-CI execution suite. 
+
+  [flog]: http://ruby.sadi.st/Flog.html
+
