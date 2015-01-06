@@ -8,78 +8,68 @@ require 'flog'
 
 # require 'pry'
 
-
 ###############################################################################
-# 
+#
 # Static complexity code analysis based on flog.
 #
 # Author: Thomas Schank <DrTom@schank.ch>
 #
 ###############################################################################
 
-
 ###############################################################################
 # Options, main ....
 ###############################################################################
 
-
-def parse_options options
-
-  optparse = OptionParser.new do |opts|
-    opts.banner = "Usage: cider-ci_flog FILE/DIR ..."
+def parse_options(options)
+  OptionParser.new do |opts|
+    opts.banner = 'Usage: cider-ci_flog FILE/DIR ...'
 
     opts.on('-l', '--limit N', Integer)  do |l|
-      options.limit= l
+      options.limit = l
     end
 
-    opts.on('-d', '--print-details')  do 
-      options.print_details= true
+    opts.on('-d', '--print-details')  do
+      options.print_details = true
     end
-
-
-
   end.parse!
 
   options
 end
 
-
 def main
   options = OpenStruct.new
-  options.limit= 30
-  options.print_details= false
+  options.limit = 30
+  options.print_details = false
 
   parse_options options
 
-  files= FlogCLI.expand_dirs_to_files ARGV
+  files = FlogCLI.expand_dirs_to_files ARGV
 
-  abort "No files are selected" if files.empty?
+  abort 'No files are selected' if files.empty?
 
   flog_options = FlogCLI.parse_options []
-  flogger= Flog.new flog_options
-  flogger.flog *files
+  flogger = Flog.new flog_options
+  flogger.flog(*files)
 
-  offending= flogger.totals \
-    .select{|k,v| v > options.limit} \
-    .sort_by{ |k,v| -v}
+  offending = flogger.totals \
+              .select { |_k, v| v > options.limit } \
+              .sort_by { |_k, v| -v }
 
-  if offending.empty? 
-    $stdout.puts "cider-ci_flog OK" 
-    exit 
+  if offending.empty?
+    $stdout.puts 'cider-ci_flog OK'
+    exit
   else
-    $stderr.puts "cider-ci_flog FAILED:" 
+    $stderr.puts 'cider-ci_flog FAILED:'
     offending.each do |offender|
-      $stderr.puts "" if options.print_details 
+      $stderr.puts '' if options.print_details
 
       $stderr.puts "#{offender[1].round} #{offender[0]}"
-      if options.print_details 
+      if options.print_details
         $stderr.puts flogger.calls[offender[0]].to_yaml
       end
     end
-    abort 
+    abort
   end
-
 end
 
-main 
-
+main

@@ -15,60 +15,53 @@ require 'pry'
 #
 ###############################################################################
 
-
 ###############################################################################
 # Options, main ....
 ###############################################################################
 
+def parse_options(options)
+  OptionParser.new do |opts|
+    opts.banner = 'Usage: cider-ci_flay FILE/DIR ...'
 
-def parse_options options
-
-  optparse = OptionParser.new do |opts|
-    opts.banner = "Usage: cider-ci_flay FILE/DIR ..."
-
-    opts.on('-d', '--print-details')  do 
-      options.print_details= true
+    opts.on('-d', '--print-details')  do
+      options.print_details = true
     end
 
     opts.on('-m', '--mass MASS', Integer,
-           "See flay documentation, default #{options.mass}.")  do |n|
-      options.mass= n
+            "See flay documentation, default #{options.mass}.")  do |n|
+      options.mass = n
     end
-
   end.parse!
 
   options
 end
 
-
 def main
   options = OpenStruct.new
-  options.print_details= false
-  options.mass= 16
+  options.print_details = false
+  options.mass = 16
   parse_options options
 
-  flay_options= Flay.default_options.merge({
+  flay_options = Flay.default_options.merge(
     mass: options.mass
-  })
-  
+  )
+
   flay = Flay.new flay_options
   files = Flay.expand_dirs_to_files(*ARGV)
 
-  abort "No files are selected" if files.empty?
+  abort 'No files are selected' if files.empty?
 
   flay.process(*files)
-  offending= flay.analyze
+  offending = flay.analyze
 
-  if offending.empty? 
-    $stdout.puts "cider-ci_flay OK" 
-    exit 
+  if offending.empty?
+    $stdout.puts 'cider-ci_flay OK'
+    exit
   else
-    $stderr.puts "cider-ci_flay FAILED:" 
+    $stderr.puts 'cider-ci_flay FAILED:'
     flay.report $stderr
-    abort 
+    abort
   end
-
 end
 
-main 
-
+main
