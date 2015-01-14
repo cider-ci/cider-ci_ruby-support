@@ -1,5 +1,4 @@
 #!/usr/bin/env ruby
-
 ###############################################################################
 # This script gathers ruby coverage information from a cider-ci instance and
 # aggregates it via simplecov.
@@ -23,6 +22,14 @@ require 'mime/types'
 require 'open-uri'
 
 ###############################################################################
+# Globals (this is a script after all)
+###############################################################################
+
+Thread.abort_on_exception = true
+@debug = false
+@pool = nil
+
+###############################################################################
 # Download from Cider-CI
 ###############################################################################
 
@@ -37,35 +44,45 @@ def get_execution_resource(root, execution_id)
   root.relation('execution').get('id' => execution_id)
 end
 
-def get_and_convert_resultset_attachments(root, tree_id, thread_pool_size)
+def print_progress_and_debug(separator = '.', msg = '')
+  if @debug
+    puts separator.to_s + " " + msg.to_s
+  else
+    print separator
+    STDOUT.flush
+  end
+end
+
+def get_and_convert_resultset_attachments(root, tree_id)
   print 'download_resultset_attachments'; STDOUT.flush
-  pool = Thread.pool thread_pool_size
+
   root.relation('executions').get('treeid' => tree_id).collection \
     .map(&:get).map do |execution|
     execution.relation('tasks').get('state' => 'passed').collection\
       .map do |task_relation|
-      Thread.future pool do
-        print '.'; STDOUT.flush
+      Thread.future @pool do
+        print_progress_and_debug('', task_relation)
         task_relation.get.relation('trials') \
           .get('state' => 'passed').collection.map(&:get).map do |trial|
-          print '.'; STDOUT.flush
+          print_progress_and_debug('.', trial)
           trial.relation('trial-attachments') \
             .get.collection.map do |tar|
+            print_progress_and_debug('.', "getting #{tar}")
             trial_attachment_resource = tar.get
-            print '.'; STDOUT.flush
             if (working_dir = trial.data['scripts'] \
                 .map { |_k, v| v['working_dir'] }.compact.first) \
               && (trial_attachment_resource.data['path'] =~ /resultset\.json/)
-              print '*'; STDOUT.flush
-              resultset = trial_attachment_resource \
-                          .relation('trial-attachment-data-stream') \
-                          .get.response.body
+              result_data_relation = trial_attachment_resource \
+                                     .relation('trial-attachment-data-stream')
+              print_progress_and_debug('*', "getting #{result_data_relation}")
+              resultset = result_data_relation.get.response.body
+              print_progress_and_debug('*', "converting resultset") 
               convert_resultset resultset, working_dir
             end
           end
         end
       end
-    end.map(&:~)
+    end.map { |f| f.value!(3) }
   end.flatten.compact
 end
 
@@ -83,7 +100,7 @@ def upload_as_tree_attachments(root, tree_id)
       root.relation('tree-attachment-data-stream').put(
         { 'treeid' => tree_id, 'path' => filename },
         File.open(filename, 'rb').read, 'content-type' => content_type)
-      print '*'; STDOUT.flush
+      print_progress_and_debug('*')
     end
   end
   puts ''
@@ -131,20 +148,51 @@ end
 # Run
 ###############################################################################
 
-def run_coverage(root, tree_id, thrad_pool_size)
-  get_and_convert_resultset_attachments(
-    root, tree_id, thrad_pool_size).instance_eval do
-      reduce_resultsets self
-    end.instance_eval do
-      if self.empty?
-        fail ScriptError, 'the collected and reduced coverage result is empty'
-      end
-      init_simple_cov
-      SimpleCov::Result.new self
-    end.instance_eval do
-      SimpleCov::Formatter::HTMLFormatter.new.format self
-      self
+def run_coverage(root, tree_id)
+  get_and_convert_resultset_attachments(root, tree_id).instance_eval do
+    reduce_resultsets self
+  end.instance_eval do
+    if self.empty?
+      fail ScriptError, 'the collected and reduced coverage result is empty'
     end
+    init_simple_cov
+    SimpleCov::Result.new self
+  end.instance_eval do
+    SimpleCov::Formatter::HTMLFormatter.new.format self
+    self
+  end
+end
+
+###############################################################################
+# Git 
+###############################################################################
+
+def assert_correct_tree_id(execution)
+  if execution.data['tree_id'] != `git log -n 1 --pretty=%T`.strip
+    fail ScriptError, 'you must be on the same tree_id as the execution'
+  end
+end
+
+def get_current_tree_id
+  begin
+    tree_id = `"git" "log" "-n" "1" "--pretty=%T"`.strip
+  rescue _
+    raise ScriptError, 'could not determine the current tree_id'
+  end
+
+  if $?.exitstatus != 0 
+    raise ScriptError, "could not determine the current tree_id"
+  else
+    tree_id
+  end
+end
+
+###############################################################################
+# Thread pool
+###############################################################################
+
+def set_thread_pool(thread_pool_size)
+  @pool = Thread.pool thread_pool_size  
 end
 
 ###############################################################################
@@ -180,32 +228,16 @@ def parse_options(options)
       options.upload = true
     end
 
+    opts.on('-d', '--debug') do
+      @debug = true
+    end
+
     opts.on('-l', '--limit N', Integer)  do |l|
       options.limit = l
     end
   end.parse!
 
   options
-end
-
-def assert_correct_tree_id(execution)
-  if execution.data['tree_id'] != `git log -n 1 --pretty=%T`.strip
-    fail ScriptError, 'you must be on the same tree_id as the execution'
-  end
-end
-
-def get_current_tree_id
-  begin
-    tree_id = `"git" "log" "-n" "1" "--pretty=%T"`.strip
-  rescue _
-    raise ScriptError, 'could not determine the current tree_id'
-  end
-
-  if $?.exitstatus != 0 
-    raise ScriptError, "could not determine the current tree_id"
-  else
-    tree_id
-  end
 end
 
 def main
@@ -227,8 +259,9 @@ def main
 
   root = connect(options.api_url, options.username, options.password).get
   tree_id = get_current_tree_id
+  set_thread_pool options.thread_pool_size
   FileUtils.rm_rf('coverage')
-  result = run_coverage root, tree_id, options.thread_pool_size
+  result = run_coverage root, tree_id
   upload_as_tree_attachments root, tree_id if options.upload
 
   coverage = (result.covered_lines / result.total_lines.to_f)

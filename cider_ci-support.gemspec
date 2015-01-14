@@ -23,7 +23,7 @@ Gem::Specification.new do |spec|
 
   spec.add_runtime_dependency 'flay', '~> 2.5.0'
   spec.add_runtime_dependency 'flog', '~> 4.3.0'
-  spec.add_runtime_dependency 'json_roa-client', '>= 1.0.0.pre.beta.2'
+  spec.add_runtime_dependency 'json_roa-client', '>= 1.0.0'
   spec.add_runtime_dependency 'mime-types'
   spec.add_runtime_dependency 'simplecov', '~> 0.9'
   spec.add_runtime_dependency 'thread', '= 0.1.4'
