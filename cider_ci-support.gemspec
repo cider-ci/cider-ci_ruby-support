@@ -21,10 +21,10 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency 'bundler', '~> 1.6'
   spec.add_development_dependency 'rake', '~> 10.0'
 
-  spec.add_runtime_dependency 'flay', '~> 2.5.0'
-  spec.add_runtime_dependency 'flog', '~> 4.3.0'
+  spec.add_runtime_dependency 'flay', '~> 2.6.1'
+  spec.add_runtime_dependency 'flog', '~> 4.3.2'
   spec.add_runtime_dependency 'json_roa-client', '>= 1.0.0'
   spec.add_runtime_dependency 'mime-types'
   spec.add_runtime_dependency 'simplecov', '~> 0.9'
-  spec.add_runtime_dependency 'thread', '= 0.1.4'
+  spec.add_runtime_dependency 'thread', '= 0.1.5'
 end
