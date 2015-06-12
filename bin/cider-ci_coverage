@@ -40,8 +40,8 @@ def connect(base_url, username, password)
   end
 end
 
-def get_execution_resource(root, execution_id)
-  root.relation('execution').get('id' => execution_id)
+def get_job_resource(root, job_id)
+  root.relation('job').get('id' => job_id)
 end
 
 def print_progress_and_debug(separator = '.', msg = '')
@@ -56,9 +56,9 @@ end
 def get_and_convert_resultset_attachments(root, tree_id)
   print 'download_resultset_attachments'; STDOUT.flush
 
-  root.relation('executions').get('treeid' => tree_id).collection \
-    .map(&:get).map do |execution|
-    execution.relation('tasks').get('state' => 'passed').collection\
+  root.relation('jobs').get('treeid' => tree_id).collection \
+    .map(&:get).map do |job|
+    job.relation('tasks').get('state' => 'passed').collection\
       .map do |task_relation|
       Thread.future @pool do
         print_progress_and_debug('', task_relation)
@@ -167,9 +167,9 @@ end
 # Git 
 ###############################################################################
 
-def assert_correct_tree_id(execution)
-  if execution.data['tree_id'] != `git log -n 1 --pretty=%T`.strip
-    fail ScriptError, 'you must be on the same tree_id as the execution'
+def assert_correct_tree_id(job)
+  if job.data['tree_id'] != `git log -n 1 --pretty=%T`.strip
+    fail ScriptError, 'you must be on the same tree_id as the job'
   end
 end
 
@@ -207,9 +207,9 @@ def parse_options(options)
       options.api_url = url
     end
 
-    opts.on('-e', '--execution EXECUTION_ID',
+    opts.on('-e', '--job JOB_ID',
             'Execution ID to retrieve coverage for') do |exid|
-      options.execution_id = exid
+      options.job_id = exid
     end
 
     opts.on('-t', '--thread-pool-size N', Integer) do |t|
