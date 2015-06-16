@@ -111,7 +111,7 @@ end
 ###############################################################################
 
 def convert_resultset(resultset, working_dir)
-  SimpleCov::JSON.parse(resultset.to_json).map do |command_name, data|
+  JSON.parse(resultset.to_json).map do |command_name, data|
     [command_name, data.map do |k, v|
       case k
       when 'coverage'
