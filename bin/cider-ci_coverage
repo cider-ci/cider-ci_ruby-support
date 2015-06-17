@@ -13,13 +13,14 @@
 
 require 'fileutils'
 require 'json_roa/client'
+require 'logger'
+require 'mime/types'
+require 'open-uri'
 require 'optparse'
 require 'ostruct'
 require 'simplecov'
 require 'thread/future'
 require 'thread/pool'
-require 'mime/types'
-require 'open-uri'
 
 ###############################################################################
 # Globals (this is a script after all)
@@ -28,6 +29,9 @@ require 'open-uri'
 Thread.abort_on_exception = true
 @debug = false
 @pool = nil
+
+@logger = Logger.new(STDERR)
+@logger.level = Logger::WARN
 
 ###############################################################################
 # Download from Cider-CI
@@ -55,31 +59,34 @@ end
 
 def get_and_convert_resultset_attachments(root, tree_id)
   print 'download_resultset_attachments'; STDOUT.flush
-
   root.relation('jobs').get('treeid' => tree_id).collection \
     .map(&:get).map do |job|
     job.relation('tasks').get('state' => 'passed').collection\
       .map do |task_relation|
       Thread.future @pool do
-        print_progress_and_debug('', task_relation)
-        task_relation.get.relation('trials') \
-          .get('state' => 'passed').collection.map(&:get).map do |trial|
-          print_progress_and_debug('.', trial)
-          trial.relation('trial-attachments') \
-            .get.collection.map do |tar|
-            print_progress_and_debug('.', "getting #{tar}")
-            trial_attachment_resource = tar.get
-            if (working_dir = trial.data['scripts'] \
-                .map { |_k, v| v['working_dir'] }.compact.first) \
-              && (trial_attachment_resource.data['path'] =~ /resultset\.json/)
-              result_data_relation = trial_attachment_resource \
-                                     .relation('trial-attachment-data-stream')
-              print_progress_and_debug('*', "getting #{result_data_relation}")
-              resultset = result_data_relation.get.response.body
-              print_progress_and_debug('*', "converting resultset") 
-              convert_resultset resultset, working_dir
+        begin 
+          print_progress_and_debug('', task_relation)
+          task_relation.get.relation('trials') \
+            .get('state' => 'passed').collection.map(&:get).map do |trial|
+            print_progress_and_debug('.', trial)
+            trial.relation('trial-attachments') \
+              .get.collection.map do |tar|
+              print_progress_and_debug('.', "getting #{tar}")
+              trial_attachment_resource = tar.get
+              if (working_dir = trial.data['scripts'] \
+                  .map { |_k, v| v['working_dir'] }.compact.first) \
+                && (trial_attachment_resource.data['path'] =~ /resultset\.json/)
+                result_data_relation = trial_attachment_resource \
+                                       .relation('trial-attachment-data-stream')
+                print_progress_and_debug('*', "getting #{result_data_relation}")
+                resultset = result_data_relation.get.response.body
+                print_progress_and_debug('*', "converting resultset") 
+                convert_resultset resultset, working_dir
+              end
             end
           end
+          rescue Exception => e
+            @logger.error e
         end
       end
     end.map { |f| f.value!(3) }
