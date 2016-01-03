@@ -24,11 +24,11 @@ def parse_options(options)
   OptionParser.new do |opts|
     opts.banner = 'Usage: cider-ci_flog FILE/DIR ...'
 
-    opts.on('-l', '--limit N', Integer)  do |l|
+    opts.on('-l', '--limit N', Integer) do |l|
       options.limit = l
     end
 
-    opts.on('-d', '--print-details')  do
+    opts.on('-d', '--print-details') do
       options.print_details = true
     end
   end.parse!

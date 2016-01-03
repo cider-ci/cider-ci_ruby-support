@@ -23,12 +23,12 @@ def parse_options(options)
   OptionParser.new do |opts|
     opts.banner = 'Usage: cider-ci_flay FILE/DIR ...'
 
-    opts.on('-d', '--print-details')  do
+    opts.on('-d', '--print-details') do
       options.print_details = true
     end
 
     opts.on('-m', '--mass MASS', Integer,
-            "See flay documentation, default #{options.mass}.")  do |n|
+            "See flay documentation, default #{options.mass}.") do |n|
       options.mass = n
     end
   end.parse!
