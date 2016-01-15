@@ -31,6 +31,10 @@ def parse_options(options)
     opts.on('-d', '--print-details') do
       options.print_details = true
     end
+
+    opts.on('-e', '--exclude-match E', Regexp) do |e|
+      options.exclude_match << e
+    end
   end.parse!
 
   options
@@ -40,10 +44,15 @@ def main
   options = OpenStruct.new
   options.limit = 30
   options.print_details = false
+  options.exclude_match = []
 
   parse_options options
 
   files = FlogCLI.expand_dirs_to_files ARGV
+
+  options.exclude_match.each do |regex|
+    files.reject! { |f| f.match regex }
+  end
 
   abort 'No files are selected' if files.empty?
 
