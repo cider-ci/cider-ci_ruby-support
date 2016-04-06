@@ -32,6 +32,10 @@ def parse_options(options)
       options.print_details = true
     end
 
+    opts.on('-m', '--methods-only') do
+      options.methods_only = true
+    end
+
     opts.on('-e', '--exclude-match E', Regexp) do |e|
       options.exclude_match << e
     end
@@ -57,6 +61,7 @@ def main
   abort 'No files are selected' if files.empty?
 
   flog_options = FlogCLI.parse_options []
+  flog_options[:methods] = true if options.methods_only
   flogger = Flog.new flog_options
   flogger.flog(*files)
 
